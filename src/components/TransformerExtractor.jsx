@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
+import { transformerSchema } from '../utils/transformerSchema'
 
 // Configura il worker di PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
@@ -10,167 +11,265 @@ function TransformerExtractor() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [rawText, setRawText] = useState('')
+  const [selectedPriority, setSelectedPriority] = useState('Tutti')
 
   const extractTransformerData = (text) => {
-    // Normalizza il testo
-    const normalizedText = text.replace(/\s+/g, ' ').toLowerCase()
+    const data = {}
 
-    const data = {
-      potenza: null,
-      tensionePrimaria: null,
-      tensioneSecondaria: null,
-      frequenza: null,
-      tipo: null,
-      classe: null,
-      raffreddamento: null,
-      numeroFasi: null,
-      gruppo: null,
-      marca: null,
-      modello: null,
-      normativa: null,
-      peso: null,
-      perdite: null
-    }
-
-    // Estrazione Potenza (kVA, MVA, VA)
-    const potenzaPatterns = [
-      /potenza\s*(?:nominale)?[:\s]+(\d+(?:[.,]\d+)?)\s*(kva|mva|va)/i,
-      /(\d+(?:[.,]\d+)?)\s*(kva|mva|va)/i,
-      /rated\s*power[:\s]+(\d+(?:[.,]\d+)?)\s*(kva|mva|va)/i
-    ]
-    for (const pattern of potenzaPatterns) {
-      const match = text.match(pattern)
-      if (match) {
-        data.potenza = `${match[1]} ${match[2].toUpperCase()}`
-        break
-      }
-    }
-
-    // Estrazione Tensione Primaria
-    const tensPrimPatterns = [
-      /tensione\s*primaria?[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i,
-      /primary\s*voltage[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i,
-      /alta\s*tensione[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i,
-      /mt[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i
-    ]
-    for (const pattern of tensPrimPatterns) {
-      const match = text.match(pattern)
-      if (match) {
-        data.tensionePrimaria = `${match[1]} ${match[2].toUpperCase()}`
-        break
-      }
-    }
-
-    // Estrazione Tensione Secondaria
-    const tensSecPatterns = [
-      /tensione\s*secondaria?[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i,
-      /secondary\s*voltage[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i,
-      /bassa\s*tensione[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i,
-      /bt[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i
-    ]
-    for (const pattern of tensSecPatterns) {
-      const match = text.match(pattern)
-      if (match) {
-        data.tensioneSecondaria = `${match[1]} ${match[2].toUpperCase()}`
-        break
-      }
-    }
-
-    // Estrazione Frequenza
-    const freqMatch = text.match(/frequenza[:\s]+(\d+)\s*hz/i) ||
-                      text.match(/frequency[:\s]+(\d+)\s*hz/i) ||
-                      text.match(/(\d+)\s*hz/i)
-    if (freqMatch) {
-      data.frequenza = `${freqMatch[1]} Hz`
-    }
-
-    // Estrazione Tipo
-    const tipoPatterns = [
-      /tipo[:\s]+(trasformatore\s+\w+)/i,
-      /type[:\s]+(\w+\s*\w*)/i,
-      /(trasformatore\s+(?:in\s+)?(?:olio|resina|secco))/i
-    ]
-    for (const pattern of tipoPatterns) {
-      const match = text.match(pattern)
-      if (match) {
-        data.tipo = match[1]
-        break
-      }
-    }
-
-    // Estrazione Classe di isolamento
-    const classeMatch = text.match(/classe\s*(?:di\s*)?isolamento[:\s]+([a-h]\d?)/i) ||
-                        text.match(/insulation\s*class[:\s]+([a-h]\d?)/i)
-    if (classeMatch) {
-      data.classe = classeMatch[1].toUpperCase()
-    }
-
-    // Estrazione Raffreddamento
-    const raffreddamentoMatch = text.match(/raffreddamento[:\s]+(\w+)/i) ||
-                                 text.match(/cooling[:\s]+(\w+)/i) ||
-                                 text.match(/(onan|onaf|ofaf|ofwf|odan)/i)
-    if (raffreddamentoMatch) {
-      data.raffreddamento = raffreddamentoMatch[1].toUpperCase()
-    }
-
-    // Estrazione Numero Fasi
-    const fasiMatch = text.match(/(\d)\s*fasi/i) ||
-                      text.match(/trifase/i) ||
-                      text.match(/monofase/i)
-    if (fasiMatch) {
-      if (fasiMatch[0].toLowerCase().includes('trifase')) {
-        data.numeroFasi = '3'
-      } else if (fasiMatch[0].toLowerCase().includes('monofase')) {
-        data.numeroFasi = '1'
-      } else {
-        data.numeroFasi = fasiMatch[1]
-      }
-    }
-
-    // Estrazione Gruppo vettoriale
-    const gruppoMatch = text.match(/gruppo\s*(?:vettoriale)?[:\s]+([dy]y?\d+)/i) ||
-                        text.match(/vector\s*group[:\s]+([dy]y?\d+)/i)
-    if (gruppoMatch) {
-      data.gruppo = gruppoMatch[1].toUpperCase()
-    }
-
-    // Estrazione Marca
-    const marcaPatterns = [
-      /marca[:\s]+(\w+(?:\s+\w+)?)/i,
-      /manufacturer[:\s]+(\w+(?:\s+\w+)?)/i,
-      /costruttore[:\s]+(\w+(?:\s+\w+)?)/i
-    ]
-    for (const pattern of marcaPatterns) {
-      const match = text.match(pattern)
-      if (match) {
-        data.marca = match[1]
-        break
-      }
-    }
-
-    // Estrazione Normativa
-    const normativaMatch = text.match(/(cei\s+\d+-\d+(?:-\d+)?)/i) ||
-                           text.match(/(iec\s+\d+(?:-\d+)?)/i) ||
-                           text.match(/(en\s+\d+(?:-\d+)?)/i)
-    if (normativaMatch) {
-      data.normativa = normativaMatch[1].toUpperCase()
-    }
-
-    // Estrazione Peso
-    const pesoMatch = text.match(/peso[:\s]+(\d+(?:[.,]\d+)?)\s*(kg|t|ton)/i) ||
-                      text.match(/weight[:\s]+(\d+(?:[.,]\d+)?)\s*(kg|t|ton)/i)
-    if (pesoMatch) {
-      data.peso = `${pesoMatch[1]} ${pesoMatch[2]}`
-    }
-
-    // Estrazione Perdite
-    const perditeMatch = text.match(/perdite\s*(?:totali)?[:\s]+(\d+(?:[.,]\d+)?)\s*(w|kw)/i) ||
-                         text.match(/losses[:\s]+(\d+(?:[.,]\d+)?)\s*(w|kw)/i)
-    if (perditeMatch) {
-      data.perdite = `${perditeMatch[1]} ${perditeMatch[2].toUpperCase()}`
-    }
+    // Itera su tutte le sezioni e campi dello schema
+    transformerSchema.sections.forEach(section => {
+      section.fields.forEach(field => {
+        data[field.keyEng] = extractFieldValue(text, field)
+      })
+    })
 
     return data
+  }
+
+  const extractFieldValue = (text, field) => {
+    const patterns = getPatternsByField(field.keyEng)
+
+    for (const pattern of patterns) {
+      const match = text.match(pattern)
+      if (match) {
+        // Restituisce il gruppo catturato o l'intero match
+        return match[1] || match[0]
+      }
+    }
+
+    return null
+  }
+
+  const getPatternsByField = (keyEng) => {
+    const patterns = {
+      // Dati Principali
+      referenceStandards: [
+        /(?:reference\s*standards?|norme?\s*(?:di\s*)?riferimento)[:\s]+([^\n]+)/i,
+        /(iec|ieee|ansi|cei|en|atex)[\s\/][\d\-]+/gi
+      ],
+      ecoDesign: [
+        /eco\s*design[:\s]+(si|no|yes|no)/i,
+        /548\/2014[:\s]+(si|no|yes|no)/i
+      ],
+      insulationType: [
+        /(?:insulation\s*type|tipologia\s*trasformatore)[:\s]+([^\n]+)/i,
+        /(resina|olio|secco|dry|oil|resin)/i
+      ],
+      coolingSystem: [
+        /(?:cooling\s*system|(?:sistema\s*(?:di\s*)?)?raffreddamento)[:\s]+([^\n]+)/i,
+        /(onan|onaf|ofaf|ofwf|odan|an\/af)/i
+      ],
+      ambientTemperature: [
+        /(?:ambient\s*temperature|(?:range\s*)?temperatura\s*ambiente)[:\s]+([^\n]+)/i,
+        /([-+]?\d+)\s*[\/°]\s*([-+]?\d+)\s*°?c/i
+      ],
+      altitude: [
+        /(?:altitude|altitudine)[:\s]+(\d+(?:[.,]\d+)?)\s*(?:m|metri|meters?)/i
+      ],
+      installationType: [
+        /(?:installation\s*type|tipo\s*(?:di\s*)?installazione)[:\s]+([^\n]+)/i,
+        /(intern[ao]|estern[ao]|indoor|outdoor)/i
+      ],
+      loadingConditions: [
+        /(?:loading\s*conditions|caratteristiche\s*(?:di\s*)?carico)[:\s]+([^\n]+)/i,
+        /(distribuzione|conversione|trazione|distribution|conversion|traction)/i
+      ],
+
+      // Caratteristiche Elettriche
+      nominalPower: [
+        /(?:nominal\s*power|potenza\s*nominale)[:\s]+(\d+(?:[.,]\d+)?)\s*(kva|mva|va)/i,
+        /(\d+(?:[.,]\d+)?)\s*(kva|mva)/i
+      ],
+      numberOfPhases: [
+        /(?:number\s*of\s*phases?|numero\s*(?:di\s*)?fasi)[:\s]+(\d)/i,
+        /(trifase|monofase|three[-\s]phase|single[-\s]phase)/i
+      ],
+      frequency: [
+        /(?:frequency|frequenza)[:\s]+(\d+(?:\/\d+)?)\s*hz/i,
+        /(\d+)\s*hz/i
+      ],
+      primaryVoltage: [
+        /(?:primary\s*voltage|tensione\s*primaria?|alta\s*tensione|mt)[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i,
+        /at[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i
+      ],
+      tappings: [
+        /(?:tappings?|posizioni)[:\s]+([^\n]+)/i,
+        /([±]\s*\d+\s*x\s*\d+(?:[.,]\d+)?%)/i
+      ],
+      tapChangerType: [
+        /(?:tap\s*changer\s*type|tipo\s*(?:di\s*)?commutatore)[:\s]+([^\n]+)/i,
+        /(vuoto|sotto\s*carico|off[-\s]load|on[-\s]load|oltc)/i
+      ],
+      tapChangerBrand: [
+        /(?:tap\s*changer\s*brand|brand\s*commutatore)[:\s]+([^\n]+)/i,
+        /(mr|hitachi|huaming|abb|maschinenfabrik)/i
+      ],
+      secondaryVoltage: [
+        /(?:secondary\s*voltage|tensione\s*(?:a\s*vuoto\s*)?secondaria?|bassa\s*tensione|bt)[:\s]+(\d+(?:[.,]\d+)?)\s*(kv|v)/i
+      ],
+      vectorGroup: [
+        /(?:vector\s*group|gruppo\s*vettoriale)[:\s]+([dy]y?n?\d+)/i,
+        /\b([dy]y?n?\d+)\b/i
+      ],
+      noLoadLosses: [
+        /(?:no[-\s]load\s*losses?|perdite?\s*(?:a\s*)?vuoto)[:\s]+(\d+(?:[.,]\d+)?)\s*(w|kw)/i
+      ],
+
+      // Perdite e Efficienza
+      loadLosses75: [
+        /(?:load\s*losses?.*?75|perdite?\s*(?:a\s*)?carico.*?75)[^\d]*(\d+(?:[.,]\d+)?)\s*(w|kw)/i
+      ],
+      loadLosses120: [
+        /(?:load\s*losses?.*?120|perdite?\s*(?:a\s*)?carico.*?120)[^\d]*(\d+(?:[.,]\d+)?)\s*(w|kw)/i
+      ],
+      peakEfficiency: [
+        /(?:pei|peak\s*efficiency\s*index)[:\s]+(\d+(?:[.,]\d+)?)\s*%/i
+      ],
+      noLoadCurrent: [
+        /(?:no[-\s]load\s*current|corrente\s*(?:a\s*)?vuoto)[:\s]+(\d+(?:[.,]\d+)?)\s*%/i
+      ],
+
+      // Isolamento
+      impedanceVoltage: [
+        /(?:impedance\s*voltage|impedenza\s*(?:di\s*)?cortocircuito)[:\s]+(\d+(?:[.,]\d+)?)\s*%/i,
+        /\bvcc[:\s]+(\d+(?:[.,]\d+)?)\s*%/i
+      ],
+      primaryThermalClass: [
+        /(?:primary.*?thermal\s*class|classe\s*termica.*?primario)[:\s]+([a-h])/i,
+        /(?:classe\s*termica.*?primario|primary.*?insulation\s*class)[:\s]+([a-h])/i
+      ],
+      secondaryThermalClass: [
+        /(?:secondary.*?thermal\s*class|classe\s*termica.*?secondario)[:\s]+([a-h])/i
+      ],
+      primaryInsulationLevel: [
+        /(?:primary.*?insulation\s*level|classe\s*isolamento\s*primario)[:\s]+(\d+(?:\/\d+)?)/i
+      ],
+      secondaryInsulationLevel: [
+        /(?:secondary.*?insulation\s*level|classe\s*isolamento\s*secondario)[:\s]+(\d+(?:[.,]\d+)?(?:\/\d+)?)/i
+      ],
+      windingsMaterial: [
+        /(?:windings?\s*material|materiale\s*avvolgimenti)[:\s]+([^\n]+)/i,
+        /\b(cu|al|rame|alluminio|copper|aluminium)\b/i
+      ],
+      windingsTemperatureRise: [
+        /(?:windings?\s*temperature\s*rise|sovratemperatura\s*avvolgimenti)[:\s]+(\d+(?:\/\d+)?)\s*k/i
+      ],
+
+      // Caratteristiche Meccaniche
+      maxSoundPressure: [
+        /(?:max.*?sound\s*pressure|massima\s*pressione\s*sonora).*?lpa[:\s]+(\d+)\s*dba/i
+      ],
+      maxSoundPower: [
+        /(?:max.*?sound\s*power|massima\s*potenza\s*sonora).*?lwa[:\s]+(\d+)\s*dba/i
+      ],
+      maxDimensions: [
+        /(?:max.*?dimensions?|dimensioni\s*massime)[:\s]+([^\n]+)/i,
+        /(\d+\s*x\s*\d+\s*x\s*\d+)\s*mm/i
+      ],
+      paintingProtection: [
+        /(?:painting\s*protection|protezione\s*superficiale)[:\s]+([^\n]+)/i,
+        /(c[2-5]|cx)/i
+      ],
+
+      // Protezioni e Tolleranze
+      shortCircuitTime: [
+        /(?:short[-\s]circuit.*?time|durata.*?cortocircuito)[:\s]+(\d+)\s*se?c/i
+      ],
+      toleranceImpedance: [
+        /(?:tolerance.*?impedance|tolleranza.*?impedenza)[:\s]+([-+]?\d+(?:[.,]\d+)?)\s*\/?\s*([-+]?\d+(?:[.,]\d+)?)\s*%/i
+      ],
+      toleranceLosses: [
+        /(?:tolerance.*?losses?|tolleranza.*?perdite)[:\s]+([-+]?\d+(?:[.,]\d+)?)\s*%/i
+      ],
+      fireClass: [
+        /(?:fire\s*class|classe.*?fuoco)[:\s]+([^\n]+)/i,
+        /(e\d[-]c\d[-]f\d)/i
+      ],
+
+      // Accessori (Sì/No per la maggior parte)
+      thermoresistances: [
+        /pt100[:\s]+(si|no|yes|s[íì])/i,
+        /(?:thermoresistances?|termoresistenz[ei])[:\s]+(si|no|yes)/i
+      ],
+      temperatureMonitoring: [
+        /(?:temperature\s*monitoring|monitoraggio.*?temperatura)[:\s]+(si|no|yes)/i,
+        /(?:dispositivo.*?digitale)[:\s]+(si|no|yes)/i
+      ],
+      enclosure: [
+        /(?:enclosure|involucro)[:\s]+([^\n]+)/i,
+        /ip\s*\d{2}/i
+      ],
+      truck: [
+        /(?:truck|carrello)[:\s]+(si|no|yes)/i,
+        /(?:ruote\s*regolabili)[:\s]+(si|no|yes)/i
+      ],
+      liftingLugs: [
+        /(?:lifting\s*lugs?|golfari)[:\s]+(si|no|yes)/i
+      ],
+      towingEyelets: [
+        /(?:towing\s*eyelets?|occhielli.*?traino)[:\s]+(si|no|yes)/i
+      ],
+      electrostaticScreen: [
+        /(?:electrostatic\s*screen|schermo\s*elettrostatico)[:\s]+(si|no|yes)/i
+      ],
+      antiVibrationPads: [
+        /(?:anti[-\s]vibration\s*pads?|supporti\s*antivibranti)[:\s]+(si|no|yes)/i
+      ],
+      earthingBalls: [
+        /(?:earthing\s*balls?|sfere.*?messa.*?terra)[:\s]+(si|no|yes)/i,
+        /ø\s*25\s*mm[:\s]+(si|no|yes)/i
+      ],
+      coolingKit: [
+        /(?:cooling\s*kit|kit.*?raffreddamento)[:\s]+(si|no|yes)/i,
+        /(?:ventole?|fans?)[:\s]+(si|no|yes)/i
+      ],
+      surgeArresters: [
+        /(?:surge\s*arresters?|scaricatori)[:\s]+(si|no|yes)/i
+      ],
+      auxiliaryCabinet: [
+        /(?:auxiliary\s*cabinet|quadro\s*ausiliario)[:\s]+([^\n]+)/i
+      ],
+      currentTransformers: [
+        /(?:current\s*transformers?|trasformatori.*?corrente|ta)[:\s]+([^\n]+)/i
+      ],
+      voltageTransformers: [
+        /(?:voltage\s*transformers?|trasformatori.*?tensione|tv)[:\s]+([^\n]+)/i
+      ],
+
+      // Test e Prove
+      routineTests: [
+        /(?:routine\s*tests?|prove.*?routine)[:\s]+([^\n]+)/i
+      ],
+      specialTests: [
+        /(?:special\s*tests?|prove\s*speciali)[:\s]+([^\n]+)/i
+      ],
+      typeTests: [
+        /(?:type\s*tests?|prove.*?tipo)[:\s]+([^\n]+)/i
+      ],
+      otherTests: [
+        /(?:other.*?tests?|altre\s*prove)[:\s]+([^\n]+)/i
+      ],
+      fatTest: [
+        /(?:fat|factory\s*acceptance\s*test|collaudo.*?fabbrica)[:\s]+(si|no|yes)/i
+      ],
+      satTest: [
+        /(?:sat|site\s*acceptance\s*test|collaudo.*?sito)[:\s]+(si|no|yes)/i
+      ],
+
+      // Altre Informazioni
+      deliveryPenalties: [
+        /(?:delivery\s*penalties|penali.*?consegna)[:\s]+([^\n]+)/i
+      ],
+      documentationPenalties: [
+        /(?:documentation\s*penalties|penali.*?documentazione)[:\s]+([^\n]+)/i
+      ],
+
+      ratingPlate: [
+        /(?:rating\s*plate|targhetta)[:\s]+([^\n]+)/i
+      ]
+    }
+
+    return patterns[keyEng] || []
   }
 
   const extractTextFromPDF = async (file) => {
@@ -248,10 +347,63 @@ function TransformerExtractor() {
     setError(null)
   }
 
+  const getFieldsToDisplay = () => {
+    return transformerSchema.sections.map(section => ({
+      ...section,
+      fields: section.fields.filter(field =>
+        selectedPriority === 'Tutti' ||
+        field.priority === 'Tutti' ||
+        field.priority === selectedPriority
+      )
+    })).filter(section => section.fields.length > 0)
+  }
+
+  const formatValue = (value, field) => {
+    if (!value) return 'Non trovato'
+
+    // Normalizza sì/no
+    if (/^(si|yes|s[íì])$/i.test(value)) return 'Sì'
+    if (/^no$/i.test(value)) return 'No'
+
+    // Normalizza fasi
+    if (field.keyEng === 'numberOfPhases') {
+      if (/trifase|three/i.test(value)) return '3'
+      if (/monofase|single/i.test(value)) return '1'
+    }
+
+    return value.trim()
+  }
+
+  const countFoundFields = () => {
+    if (!extractedData) return { found: 0, total: 0 }
+
+    const displaySections = getFieldsToDisplay()
+    const totalFields = displaySections.reduce((sum, section) => sum + section.fields.length, 0)
+    const foundFields = displaySections.reduce((sum, section) =>
+      sum + section.fields.filter(field => extractedData[field.keyEng]).length, 0
+    )
+
+    return { found: foundFields, total: totalFields }
+  }
+
   return (
     <div className="transformer-extractor">
       <div className="upload-section">
         <h2>Carica Capitolato</h2>
+
+        <div className="priority-selector">
+          <label>Filtra per priorità:</label>
+          <select
+            value={selectedPriority}
+            onChange={(e) => setSelectedPriority(e.target.value)}
+            className="priority-select"
+          >
+            <option value="Tutti">Tutti i campi</option>
+            <option value="Resina">Solo Resina</option>
+            <option value="Olio">Solo Olio</option>
+          </select>
+        </div>
+
         <div className="file-input-wrapper">
           <input
             type="file"
@@ -281,27 +433,56 @@ function TransformerExtractor() {
         </div>
 
         {error && <div className="error-message">{error}</div>}
+
+        {extractedData && (
+          <div className="stats-badge">
+            Dati trovati: {countFoundFields().found} / {countFoundFields().total}
+          </div>
+        )}
       </div>
 
       {extractedData && (
         <div className="results-section">
-          <h2>Dati Estratti</h2>
-          <div className="data-grid">
-            {Object.entries(extractedData).map(([key, value]) => (
-              <div key={key} className={`data-item ${value ? 'found' : 'not-found'}`}>
-                <span className="data-label">
-                  {key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}:
-                </span>
-                <span className="data-value">
-                  {value || 'Non trovato'}
-                </span>
+          <h2>Dati Estratti - Schema Fisso</h2>
+
+          {getFieldsToDisplay().map((section, sectionIdx) => (
+            <div key={sectionIdx} className="data-section">
+              <h3
+                className="section-title"
+                style={{ borderLeftColor: section.color }}
+              >
+                {section.title}
+              </h3>
+
+              <div className="data-grid">
+                {section.fields.map((field, fieldIdx) => {
+                  const value = extractedData[field.keyEng]
+                  const formattedValue = formatValue(value, field)
+                  const isFound = value !== null && value !== undefined
+
+                  return (
+                    <div
+                      key={fieldIdx}
+                      className={`data-item ${isFound ? 'found' : 'not-found'}`}
+                    >
+                      <div className="data-header">
+                        <span className="data-label">{field.label}</span>
+                        <span className="data-priority">{field.priority}</span>
+                      </div>
+                      <span className="data-value">{formattedValue}</span>
+                      {!isFound && field.examples && (
+                        <span className="data-example">Es: {field.examples}</span>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
 
           {rawText && (
             <details className="raw-text-section">
-              <summary>Mostra testo estratto</summary>
+              <summary>Mostra testo estratto completo</summary>
               <pre className="raw-text">{rawText}</pre>
             </details>
           )}

@@ -1,6 +1,6 @@
 /* Global Styles */
 .app {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: 20px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -57,6 +57,37 @@
   margin-bottom: 20px;
   color: #333;
   font-size: 1.5rem;
+}
+
+/* Priority Selector */
+.priority-selector {
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.priority-selector label {
+  font-weight: 600;
+  color: #555;
+  font-size: 0.95rem;
+}
+
+.priority-select {
+  padding: 8px 16px;
+  border: 2px solid #e1e8ed;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background-color: white;
+  cursor: pointer;
+  transition: border-color 0.3s;
+  flex: 1;
+  max-width: 250px;
+}
+
+.priority-select:focus {
+  outline: none;
+  border-color: #667eea;
 }
 
 .file-input-wrapper {
@@ -142,6 +173,19 @@
   font-weight: 500;
 }
 
+/* Stats Badge */
+.stats-badge {
+  margin-top: 20px;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  box-shadow: 0 2px 8px rgba(17, 153, 142, 0.3);
+}
+
 /* Results Section */
 .results-section {
   margin-top: 30px;
@@ -149,16 +193,34 @@
   border-top: 2px solid #eee;
 }
 
-.results-section h2 {
+.results-section > h2 {
   margin-top: 0;
-  margin-bottom: 20px;
+  margin-bottom: 30px;
   color: #333;
-  font-size: 1.5rem;
+  font-size: 1.8rem;
+  text-align: center;
+}
+
+/* Data Section */
+.data-section {
+  margin-bottom: 30px;
+}
+
+.section-title {
+  margin: 0 0 20px 0;
+  padding: 12px 20px;
+  padding-left: 24px;
+  background-color: #f8f9fa;
+  border-left: 6px solid #667eea;
+  border-radius: 6px;
+  color: #333;
+  font-size: 1.3rem;
+  font-weight: 600;
 }
 
 .data-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -170,6 +232,7 @@
   flex-direction: column;
   gap: 8px;
   transition: all 0.3s ease;
+  border: 2px solid transparent;
 }
 
 .data-item.found {
@@ -180,30 +243,63 @@
 .data-item.not-found {
   background-color: #fff3e0;
   border-left: 4px solid #ff9800;
-  opacity: 0.7;
+  opacity: 0.8;
+}
+
+.data-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Data Header (Label + Priority) */
+.data-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
 }
 
 .data-label {
   font-weight: 600;
   color: #555;
   font-size: 0.9rem;
-  text-transform: capitalize;
+  flex: 1;
+}
+
+.data-priority {
+  padding: 2px 8px;
+  background-color: rgba(102, 126, 234, 0.15);
+  color: #667eea;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .data-value {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   color: #333;
   font-weight: 500;
+  word-wrap: break-word;
 }
 
 .data-item.not-found .data-value {
   font-style: italic;
   color: #999;
+  font-size: 0.95rem;
+}
+
+.data-example {
+  font-size: 0.85rem;
+  color: #888;
+  font-style: italic;
+  margin-top: 4px;
 }
 
 /* Raw Text Section */
 .raw-text-section {
-  margin-top: 30px;
+  margin-top: 40px;
   border: 1px solid #ddd;
   border-radius: 8px;
   overflow: hidden;
@@ -216,6 +312,7 @@
   font-weight: 600;
   color: #555;
   user-select: none;
+  transition: background-color 0.2s;
 }
 
 .raw-text-section summary:hover {
@@ -238,6 +335,12 @@
 }
 
 /* Responsive Design */
+@media (max-width: 1024px) {
+  .data-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
   .app {
     padding: 10px;
@@ -266,5 +369,39 @@
   .extract-btn,
   .reset-btn {
     width: 100%;
+  }
+
+  .priority-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .priority-select {
+    max-width: 100%;
+  }
+
+  .section-title {
+    font-size: 1.1rem;
+    padding: 10px 16px;
+    padding-left: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .results-section > h2 {
+    font-size: 1.4rem;
+  }
+
+  .data-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .data-priority {
+    align-self: flex-start;
   }
 }
